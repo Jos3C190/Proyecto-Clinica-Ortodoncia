@@ -1,0 +1,30 @@
+# Dependencias de Node.js
+node_modules/
+npm-debug.log
+yarn-error.log
+
+# Archivos de entorno (variables sensibles)
+.env
+*.env
+
+# Archivos de compilación o build
+dist/
+build/
+
+# Logs
+logs/
+*.log
+
+# Archivos temporales
+*.tmp
+*.swp
+
+
+# Archivos de configuración de editores
+.vscode/
+.idea/
+*.sublime-workspace
+
+# Otros
+.DS_Store  # macOS
+Thumbs.db  # Windows
