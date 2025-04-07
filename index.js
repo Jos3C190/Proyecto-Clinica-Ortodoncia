@@ -14,6 +14,7 @@ app.use(cors());
 connectDB();
 
 // Rutas
+app.use('/api/auth', require('./routes/auth'));
 app.use('/pacientes', pacienteRoutes);
 app.use('/odontologos', odontologoRoutes);
 
