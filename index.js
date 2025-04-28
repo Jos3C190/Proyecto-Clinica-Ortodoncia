@@ -4,6 +4,7 @@ const cors = require('cors');
 const connectDB = require('./config/db');
 const pacienteRoutes = require('./routes/pacienteRoutes');
 const odontologoRoutes = require('./routes/odontologoRoutes');
+const citaRoutes = require('./routes/citaRoutes');
 const errorHandler = require('./middleware/errorHandler');
 
 const app = express();
@@ -17,6 +18,7 @@ connectDB();
 app.use('/api/auth', require('./routes/auth'));
 app.use('/pacientes', pacienteRoutes);
 app.use('/odontologos', odontologoRoutes);
+app.use('/api/citas', citaRoutes);
 
 // Middleware de manejo de errores
 app.use(errorHandler);
