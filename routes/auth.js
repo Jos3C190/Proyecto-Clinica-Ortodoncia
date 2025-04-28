@@ -19,7 +19,7 @@ const validacionesLogin = [
     body('password').not().isEmpty().withMessage('La contraseña es obligatoria'),
 ];
 
-router.post('/register', validacionesRegistro, register); // Registro solo para pacientes
-router.post('/login', validacionesLogin, login); // Login para todos
+router.post('/register', validacionesRegistro, register); // Público para pacientes
+router.post('/login', validacionesLogin, login); // Sin restricción por rol
 
 module.exports = router;
