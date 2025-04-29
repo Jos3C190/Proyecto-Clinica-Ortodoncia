@@ -1,9 +1,10 @@
 const express = require('express');
-const { body, query } = require('express-validator');
+const { body, query, param } = require('express-validator');
 const router = express.Router();
 const auth = require('../middleware/auth');
 const crearCita = require('../controllers/citaController/crearCita');
 const obtenerCitas = require('../controllers/citaController/obtenerCitas');
+const actualizarCita = require('../controllers/citaController/actualizarCita');
 
 // Middleware personalizado para autenticación opcional
 const optionalAuth = (req, res, next) => {
@@ -59,8 +60,24 @@ const validacionesObtenerCitas = [
         .withMessage('El estado debe ser pendiente, completada o cancelada')
 ];
 
+// Validaciones para actualizar cita
+const validacionesActualizarCita = [
+    param('id').isMongoId().withMessage('El ID debe ser un MongoID válido'),
+    body('fecha').optional().isDate().withMessage('La fecha debe ser válida'),
+    body('hora')
+        .optional()
+        .matches(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/)
+        .withMessage('La hora debe estar en formato HH:MM'),
+    body('motivo').optional().isString().withMessage('El motivo debe ser un texto'),
+    body('estado')
+        .optional()
+        .isIn(['pendiente', 'completada', 'cancelada'])
+        .withMessage('El estado debe ser pendiente, completada o cancelada')
+];
+
 // Rutas
 router.post('/', optionalAuth, validacionesCita, crearCita);
 router.get('/', auth(['paciente', 'odontologo', 'admin']), validacionesObtenerCitas, obtenerCitas);
+router.put('/:id', auth(['odontologo', 'admin']), validacionesActualizarCita, actualizarCita);
 
 module.exports = router;
