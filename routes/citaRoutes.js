@@ -5,6 +5,7 @@ const auth = require('../middleware/auth');
 const crearCita = require('../controllers/citaController/crearCita');
 const obtenerCitas = require('../controllers/citaController/obtenerCitas');
 const actualizarCita = require('../controllers/citaController/actualizarCita');
+const eliminarCita = require('../controllers/citaController/eliminarCita');
 
 // Middleware personalizado para autenticación opcional
 const optionalAuth = (req, res, next) => {
@@ -75,9 +76,15 @@ const validacionesActualizarCita = [
         .withMessage('El estado debe ser pendiente, completada o cancelada')
 ];
 
+// Validaciones para eliminar cita
+const validacionesEliminarCita = [
+    param('id').isMongoId().withMessage('El ID debe ser un MongoID válido')
+];
+
 // Rutas
 router.post('/', optionalAuth, validacionesCita, crearCita);
 router.get('/', auth(['paciente', 'odontologo', 'admin']), validacionesObtenerCitas, obtenerCitas);
 router.put('/:id', auth(['odontologo', 'admin']), validacionesActualizarCita, actualizarCita);
+router.delete('/:id', auth(['admin']), validacionesEliminarCita, eliminarCita);
 
 module.exports = router;
