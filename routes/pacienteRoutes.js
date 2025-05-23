@@ -18,6 +18,7 @@ const validacionesPaciente = [
     body('direccion').not().isEmpty().withMessage('La dirección es obligatoria'),
     body('fecha_nacimiento').isDate().withMessage('La fecha de nacimiento debe ser una fecha válida'),
     body('historia_clinica').optional().isString().withMessage('La historia clínica debe ser texto'), // Opcional
+    body('password').isLength({ min: 6 }).withMessage('La contraseña es obligatoria y debe tener al menos 6 caracteres'),
 ];
 
 // Rutas

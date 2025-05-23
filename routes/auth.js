@@ -3,6 +3,7 @@ const { body } = require('express-validator');
 const router = express.Router();
 const register = require('../controllers/authController/register');
 const login = require('../controllers/authController/login');
+const verifyToken = require('../controllers/authController/verifyToken');
 
 const validacionesRegistro = [
     body('correo').isEmail().withMessage('El correo debe ser válido'),
@@ -21,5 +22,6 @@ const validacionesLogin = [
 
 router.post('/register', validacionesRegistro, register); // Público para pacientes
 router.post('/login', validacionesLogin, login); // Sin restricción por rol
+router.get('/verify', verifyToken);
 
 module.exports = router;

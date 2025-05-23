@@ -5,7 +5,10 @@ const connectDB = require('./config/db');
 const pacienteRoutes = require('./routes/pacienteRoutes');
 const odontologoRoutes = require('./routes/odontologoRoutes');
 const citaRoutes = require('./routes/citaRoutes');
+const expedienteRoutes = require('./routes/expedienteRoutes');
+const tratamientoRoutes = require('./routes/tratamientoRoutes');
 const errorHandler = require('./middleware/errorHandler');
+const dashboardRoutes = require('./routes/dashboardRoutes');
 
 const app = express();
 app.use(express.json());
@@ -19,6 +22,9 @@ app.use('/api/auth', require('./routes/auth'));
 app.use('/pacientes', pacienteRoutes);
 app.use('/odontologos', odontologoRoutes);
 app.use('/api/citas', citaRoutes);
+app.use('/api/expedientes', expedienteRoutes);
+app.use('/api/tratamientos', tratamientoRoutes);
+app.use('/api/dashboard', dashboardRoutes);
 
 // Middleware de manejo de errores
 app.use(errorHandler);

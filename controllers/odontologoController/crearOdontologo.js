@@ -1,5 +1,6 @@
 const { validationResult } = require('express-validator');
 const Odontologo = require('../../models/Odontologo');
+const Activity = require('../../models/Activity');
 
 const crearOdontologo = async (req, res) => {
     const errores = validationResult(req);
@@ -19,6 +20,14 @@ const crearOdontologo = async (req, res) => {
 
         const odontologo = new Odontologo(req.body);
         await odontologo.save();
+        await Activity.create({
+            type: 'odontologo',
+            action: 'created',
+            description: `Nuevo odontólogo registrado: ${odontologo.nombre} ${odontologo.apellido}`,
+            userId: odontologo._id,
+            userRole: 'Odontologo',
+            userName: `${odontologo.nombre} ${odontologo.apellido}`
+        });
         res.status(201).json(odontologo);
     } catch (error) {
         res.status(400).json({ error: error.message });

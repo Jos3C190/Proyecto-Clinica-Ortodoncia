@@ -3,6 +3,7 @@ const Cita = require('../../models/Cita');
 const Paciente = require('../../models/Paciente');
 const PacienteTemporal = require('../../models/PacienteTemporal');
 const Odontologo = require('../../models/Odontologo');
+const Activity = require('../../models/Activity');
 
 const crearCita = async (req, res) => {
     const errores = validationResult(req);
@@ -102,6 +103,32 @@ const crearCita = async (req, res) => {
         });
 
         await cita.save();
+
+        // Registrar actividad
+        let userName = '';
+        let userRole = '';
+        let userId = null;
+        let pacienteNombre = '';
+        if (req.user) {
+            userName = req.user.nombre ? `${req.user.nombre} ${req.user.apellido}` : req.user.id;
+            userRole = req.user.role.charAt(0).toUpperCase() + req.user.role.slice(1);
+            userId = req.user.id;
+            pacienteNombre = userName;
+        } else if (pacienteData) {
+            userName = `${pacienteData.nombre} ${pacienteData.apellido}`;
+            userRole = 'Paciente';
+            userId = pacienteData._id;
+            pacienteNombre = userName;
+        }
+        await Activity.create({
+            type: 'cita',
+            action: 'created',
+            description: `Nueva cita para ${pacienteNombre}`,
+            userId,
+            userRole,
+            userName
+        });
+
         res.status(201).json({ message: 'Cita creada con éxito', cita });
     } catch (error) {
         res.status(500).json({ error: error.message });

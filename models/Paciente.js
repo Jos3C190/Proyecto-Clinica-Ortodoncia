@@ -2,7 +2,6 @@ const { Schema, model } = require('mongoose');
 const bcrypt = require('bcryptjs');
 
 const pacienteSchema = new Schema({
-    id_paciente: { type: Schema.Types.ObjectId, required: true, auto: true }, 
     nombre: { type: String, required: true },
     apellido: { type: String, required: true },
     correo: { type: String, required: true, unique: true }, 
