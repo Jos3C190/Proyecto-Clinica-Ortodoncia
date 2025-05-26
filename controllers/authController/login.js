@@ -19,6 +19,13 @@ const login = async (req, res) => {
             usuario = await Odontologo.findOne({ correo });
         }
 
+        // Log para depuración
+        /*console.log('Usuario encontrado:', usuario);
+        console.log('Contraseña recibida:', password);
+        if (usuario) {
+            console.log('Hash en BD:', usuario.password);
+        }*/
+
         if (!usuario) {
             return res.status(404).json({ message: 'Usuario no encontrado' });
         }

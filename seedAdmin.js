@@ -23,14 +23,10 @@ const seedAdmin = async () => {
             correo: 'admin@example.com',
             telefono: '1234567890',
             especialidad: 'Administración',
-            password: 'admin123', // Contraseña en texto plano, será encriptada
+            password: 'admin123', // No hashear aquí, el modelo lo hará automáticamente
             role: 'admin',
             fecha_nacimiento: new Date('1980-01-01') 
         };
-
-        // Encriptar la contraseña
-        const salt = await bcrypt.genSalt(10);
-        adminData.password = await bcrypt.hash(adminData.password, salt);
 
         // Guardar el administrador
         const admin = new Odontologo(adminData);
