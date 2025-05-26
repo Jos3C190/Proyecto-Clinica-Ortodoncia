@@ -12,7 +12,7 @@ const crearCita = async (req, res) => {
     }
 
     try {
-        const { fecha, hora, motivo, pacienteId } = req.body;
+        const { fecha, hora, motivo, pacienteId, odontologoId: odontologoIdBody } = req.body;
         let odontologoId = null;
         let pacienteData = null;
 
@@ -25,14 +25,19 @@ const crearCita = async (req, res) => {
                     return res.status(404).json({ message: 'Paciente no encontrado' });
                 }
             } else if (req.user.role === 'odontologo' || req.user.role === 'admin') {
-                // Odontólogo autenticado
-                odontologoId = req.user.id;
+                // Odontólogo o admin autenticado
                 if (!pacienteId) {
                     return res.status(400).json({ message: 'El ID del paciente es obligatorio' });
                 }
                 pacienteData = await Paciente.findById(pacienteId);
                 if (!pacienteData) {
                     return res.status(404).json({ message: 'Paciente no encontrado' });
+                }
+                // Permitir asignar odontólogo manualmente
+                if (odontologoIdBody) {
+                    odontologoId = odontologoIdBody;
+                } else {
+                    odontologoId = req.user.id;
                 }
             }
         } else {
@@ -109,16 +114,24 @@ const crearCita = async (req, res) => {
         let userRole = '';
         let userId = null;
         let pacienteNombre = '';
+        // Obtener nombre del paciente correctamente
+        if (cita.pacienteId) {
+            // Buscar paciente registrado
+            const pacienteDoc = await Paciente.findById(cita.pacienteId);
+            pacienteNombre = pacienteDoc ? `${pacienteDoc.nombre} ${pacienteDoc.apellido}` : cita.pacienteId.toString();
+        } else if (cita.pacienteTemporalId) {
+            // Buscar paciente temporal
+            const pacienteTempDoc = await PacienteTemporal.findById(cita.pacienteTemporalId);
+            pacienteNombre = pacienteTempDoc ? `${pacienteTempDoc.nombre} ${pacienteTempDoc.apellido}` : cita.pacienteTemporalId.toString();
+        }
         if (req.user) {
             userName = req.user.nombre ? `${req.user.nombre} ${req.user.apellido}` : req.user.id;
             userRole = req.user.role.charAt(0).toUpperCase() + req.user.role.slice(1);
             userId = req.user.id;
-            pacienteNombre = userName;
         } else if (pacienteData) {
             userName = `${pacienteData.nombre} ${pacienteData.apellido}`;
             userRole = 'Paciente';
             userId = pacienteData._id;
-            pacienteNombre = userName;
         }
         await Activity.create({
             type: 'cita',

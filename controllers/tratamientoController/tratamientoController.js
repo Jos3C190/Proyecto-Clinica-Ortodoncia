@@ -2,9 +2,16 @@ const Tratamiento = require('../../models/Tratamiento');
 const Activity = require('../../models/Activity');
 const Expediente = require('../../models/Expediente');
 const Paciente = require('../../models/Paciente');
+const moment = require('moment-timezone');
 
 exports.crearTratamiento = async (req, res) => {
   try {
+    // Verificar si el paciente tiene un expediente
+    const expedienteExistente = await Expediente.findOne({ paciente: req.body.paciente });
+    if (!expedienteExistente) {
+      return res.status(400).json({ message: 'No se puede crear un tratamiento sin un expediente asociado al paciente.' });
+    }
+
     const tratamiento = new Tratamiento(req.body);
     await tratamiento.save();
     await Expediente.findOneAndUpdate(
@@ -65,18 +72,46 @@ exports.obtenerTratamientoPorId = async (req, res) => {
 
 exports.actualizarTratamiento = async (req, res) => {
   try {
-    const tratamiento = await Tratamiento.findByIdAndUpdate(req.params.id, req.body, { new: true });
+    // Obtener el tratamiento antes de actualizar para comparar el estado
+    const tratamientoPrevio = await Tratamiento.findById(req.params.id);
+    let updateData = { ...req.body };
+    // Si el estado cambia a completado, asegurarse de que fechaFin sea la fecha actual en El Salvador si no es válida o es futura
+    if (
+      tratamientoPrevio &&
+      tratamientoPrevio.estado !== 'completado' &&
+      req.body.estado === 'completado'
+    ) {
+      let fechaFin = req.body.fechaFin ? new Date(req.body.fechaFin) : moment().tz('America/El_Salvador').toDate();
+      const now = moment().tz('America/El_Salvador').toDate();
+      if (!req.body.fechaFin || isNaN(fechaFin.getTime()) || fechaFin > now) {
+        fechaFin = now;
+      }
+      updateData.fechaFin = fechaFin;
+    }
+    const tratamiento = await Tratamiento.findByIdAndUpdate(req.params.id, updateData, { new: true });
     if (!tratamiento) return res.status(404).json({ message: 'Tratamiento no encontrado' });
     const pacienteDoc = await Paciente.findById(tratamiento.paciente);
     const pacienteNombre = pacienteDoc ? `${pacienteDoc.nombre} ${pacienteDoc.apellido}` : tratamiento.paciente.toString();
-    await Activity.create({
-      type: 'tratamiento',
-      action: 'updated',
-      description: `Tratamiento actualizado para paciente ${pacienteNombre}`,
-      userId: tratamiento.odontologo,
-      userRole: 'Odontologo',
-      userName: tratamiento.odontologo.toString()
-    });
+    // Si el estado cambió a completado, registrar actividad especial
+    if (tratamientoPrevio && tratamientoPrevio.estado !== 'completado' && tratamiento.estado === 'completado') {
+      await Activity.create({
+        type: 'tratamiento',
+        action: 'completed',
+        description: `${pacienteNombre} completó su tratamiento de ${tratamiento.tipo}`,
+        userId: tratamiento.paciente,
+        userRole: 'Paciente',
+        userName: pacienteNombre
+      });
+    } else {
+      await Activity.create({
+        type: 'tratamiento',
+        action: 'updated',
+        description: `Tratamiento actualizado para paciente ${pacienteNombre}`,
+        userId: tratamiento.odontologo,
+        userRole: 'Odontologo',
+        userName: tratamiento.odontologo.toString()
+      });
+    }
     res.json(tratamiento);
   } catch (error) {
     res.status(400).json({ message: 'Error al actualizar tratamiento', error });

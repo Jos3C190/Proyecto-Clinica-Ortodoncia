@@ -1,6 +1,7 @@
 const { validationResult } = require('express-validator');
 const Paciente = require('../../models/Paciente');
 const Activity = require('../../models/Activity');
+const bcrypt = require('bcryptjs');
 
 const actualizarPaciente = async (req, res) => {
     // Validar los errores
@@ -10,7 +11,14 @@ const actualizarPaciente = async (req, res) => {
     }
 
     try {
-        const paciente = await Paciente.findByIdAndUpdate(req.params.id, req.body, { new: true });
+        let updateData = { ...req.body };
+        // Si se va a actualizar la contraseña, encriptarla (solo si se envía en el body)
+        if (updateData.password === undefined || updateData.password === null || updateData.password === '') {
+            delete updateData.password;
+        } else if (updateData.password) {
+            updateData.password = await bcrypt.hash(updateData.password, 10);
+        }
+        const paciente = await Paciente.findByIdAndUpdate(req.params.id, updateData, { new: true });
         if (!paciente) return res.status(404).json({ message: 'Paciente no encontrado' });
         await Activity.create({
             type: 'patient',

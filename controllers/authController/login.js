@@ -31,10 +31,34 @@ const login = async (req, res) => {
         const token = jwt.sign(
             { id: usuario._id, role: usuario.role }, // Role en el token
             process.env.JWT_SECRET,
-            { expiresIn: '1h' }
+            { expiresIn: '12h' }
         );
 
-        res.json({ token, role: usuario.role });
+        // Preparar información básica del usuario (sin password)
+        let userInfo = {};
+        if (usuario.role === 'paciente') {
+            userInfo = {
+                _id: usuario._id,
+                nombre: usuario.nombre,
+                apellido: usuario.apellido,
+                correo: usuario.correo,
+                telefono: usuario.telefono,
+                direccion: usuario.direccion,
+                fecha_nacimiento: usuario.fecha_nacimiento
+            };
+        } else {
+            userInfo = {
+                _id: usuario._id,
+                nombre: usuario.nombre,
+                apellido: usuario.apellido,
+                correo: usuario.correo,
+                telefono: usuario.telefono,
+                especialidad: usuario.especialidad,
+                fecha_nacimiento: usuario.fecha_nacimiento
+            };
+        }
+
+        res.json({ token, role: usuario.role, user: userInfo });
     } catch (error) {
         res.status(500).json({ error: error.message });
     }

@@ -67,10 +67,22 @@ const actualizarCita = async (req, res) => {
             userRole = req.user.role.charAt(0).toUpperCase() + req.user.role.slice(1);
             userId = req.user.id;
         }
+        // Detectar cambio de estado especial
+        let actividadEspecial = false;
+        let actividadDescripcion = `Cita actualizada para ${pacienteNombre}`;
+        if (estado && cita.estado !== estado) {
+            if (estado === 'completada') {
+                actividadEspecial = true;
+                actividadDescripcion = `${pacienteNombre} completó su cita para ${cita.motivo}`;
+            } else if (estado === 'cancelada') {
+                actividadEspecial = true;
+                actividadDescripcion = `${pacienteNombre} canceló su cita para ${cita.motivo}`;
+            }
+        }
         await Activity.create({
-            type: 'appointment',
-            action: 'updated',
-            description: `Cita actualizada para ${pacienteNombre}`,
+            type: 'cita',
+            action: actividadEspecial ? estado : 'updated',
+            description: actividadDescripcion,
             userId,
             userRole,
             userName
