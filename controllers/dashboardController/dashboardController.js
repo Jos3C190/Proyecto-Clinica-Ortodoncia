@@ -11,28 +11,91 @@ exports.getStats = async (req, res) => {
 
     // Zona horaria de El Salvador
     const tz = 'America/El_Salvador';
-    // Día actual en El Salvador
-    const startOfDay = moment.tz(tz).startOf('day');
-    const startOfNextDay = moment(startOfDay).add(1, 'day');
-    // Semana actual (lunes a domingo) en El Salvador
+    const hoy = moment.tz(tz);
+    const year = hoy.year();
+    const month = hoy.month() + 1; // moment.month() es 0-indexado
+    const day = hoy.date();
+    const fechaLocalHoy = `${year}-${month.toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`;
+
+    // Citas del día solo por fecha local (ignorando hora)
+    const citasHoy = await Cita.aggregate([
+      {
+        $addFields: {
+          fechaLocal: {
+            $dateToString: { format: "%Y-%m-%d", date: "$fecha", timezone: tz }
+          }
+        }
+      },
+      {
+        $match: {
+          fechaLocal: fechaLocalHoy
+        }
+      },
+      {
+        $count: "total"
+      }
+    ]);
+    const appointmentsToday = citasHoy.length > 0 ? citasHoy[0].total : 0;
+
+    // Semana y mes como antes (usando rangos)
     moment.updateLocale('es', { week: { dow: 1 } }); // Lunes como primer día
     const startOfWeek = moment.tz(tz).startOf('week');
     const startOfNextWeek = moment(startOfWeek).add(1, 'week');
-    // Mes actual en El Salvador
     const startOfMonth = moment.tz(tz).startOf('month');
     const startOfNextMonth = moment(startOfMonth).add(1, 'month');
-
-    // Convertir a Date (UTC) para MongoDB
-    const startOfDayUTC = startOfDay.toDate();
-    const startOfNextDayUTC = startOfNextDay.toDate();
     const startOfWeekUTC = startOfWeek.toDate();
     const startOfNextWeekUTC = startOfNextWeek.toDate();
     const startOfMonthUTC = startOfMonth.toDate();
     const startOfNextMonthUTC = startOfNextMonth.toDate();
 
-    const appointmentsToday = await Cita.countDocuments({ fecha: { $gte: startOfDayUTC, $lt: startOfNextDayUTC } });
-    const appointmentsWeek = await Cita.countDocuments({ fecha: { $gte: startOfWeekUTC, $lt: startOfNextWeekUTC } });
-    const monthlyAppointments = await Cita.countDocuments({ fecha: { $gte: startOfMonthUTC, $lt: startOfNextMonthUTC } });
+    // Citas de la semana solo por fecha local (ignorando hora)
+    const fechasSemana = [];
+    let cursorSemana = moment.tz(startOfWeek, tz);
+    while (cursorSemana.isBefore(startOfNextWeek)) {
+      fechasSemana.push(cursorSemana.format('YYYY-MM-DD'));
+      cursorSemana.add(1, 'day');
+    }
+    const citasSemana = await Cita.aggregate([
+      {
+        $addFields: {
+          fechaLocal: {
+            $dateToString: { format: "%Y-%m-%d", date: "$fecha", timezone: tz }
+          }
+        }
+      },
+      {
+        $match: {
+          fechaLocal: { $in: fechasSemana }
+        }
+      },
+      { $count: "total" }
+    ]);
+    const appointmentsWeek = citasSemana.length > 0 ? citasSemana[0].total : 0;
+
+    // Citas del mes solo por fecha local (ignorando hora)
+    const diasEnMes = startOfNextMonth.diff(startOfMonth, 'days');
+    const fechasMes = [];
+    let cursorMes = moment.tz(startOfMonth, tz);
+    for (let i = 0; i < diasEnMes; i++) {
+      fechasMes.push(cursorMes.format('YYYY-MM-DD'));
+      cursorMes.add(1, 'day');
+    }
+    const citasMes = await Cita.aggregate([
+      {
+        $addFields: {
+          fechaLocal: {
+            $dateToString: { format: "%Y-%m-%d", date: "$fecha", timezone: tz }
+          }
+        }
+      },
+      {
+        $match: {
+          fechaLocal: { $in: fechasMes }
+        }
+      },
+      { $count: "total" }
+    ]);
+    const monthlyAppointments = citasMes.length > 0 ? citasMes[0].total : 0;
 
     // Tratamientos completados este mes
     const Tratamiento = require('../../models/Tratamiento');
