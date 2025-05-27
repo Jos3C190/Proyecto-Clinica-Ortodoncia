@@ -9,33 +9,34 @@ exports.getStats = async (req, res) => {
   try {
     const totalPatients = await Paciente.countDocuments();
 
-    // Hoy en UTC
-    const today = new Date();
-    today.setUTCHours(0, 0, 0, 0);
-    const tomorrow = new Date(today);
-    tomorrow.setUTCDate(today.getUTCDate() + 1);
+    // Zona horaria de El Salvador
+    const tz = 'America/El_Salvador';
+    // Día actual en El Salvador
+    const startOfDay = moment.tz(tz).startOf('day');
+    const endOfDay = moment.tz(tz).endOf('day');
+    // Semana actual (lunes a domingo) en El Salvador
+    moment.updateLocale('es', { week: { dow: 1 } }); // Lunes como primer día
+    const startOfWeek = moment.tz(tz).startOf('week');
+    const endOfWeek = moment.tz(tz).endOf('week');
+    // Mes actual en El Salvador
+    const startOfMonth = moment.tz(tz).startOf('month');
+    const endOfMonth = moment.tz(tz).endOf('month');
 
-    // Semana actual (lunes a domingo) en UTC
-    const dayOfWeek = today.getUTCDay(); // 0=domingo, 1=lunes, ..., 6=sábado
-    const diffToMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
-    const weekStart = new Date(today);
-    weekStart.setUTCDate(today.getUTCDate() - diffToMonday);
-    weekStart.setUTCHours(0, 0, 0, 0);
-    const weekEnd = new Date(weekStart);
-    weekEnd.setUTCDate(weekStart.getUTCDate() + 7);
-    weekEnd.setUTCHours(0, 0, 0, 0);
+    // Convertir a Date (UTC) para MongoDB
+    const startOfDayUTC = startOfDay.toDate();
+    const endOfDayUTC = endOfDay.toDate();
+    const startOfWeekUTC = startOfWeek.toDate();
+    const endOfWeekUTC = endOfWeek.toDate();
+    const startOfMonthUTC = startOfMonth.toDate();
+    const endOfMonthUTC = endOfMonth.toDate();
 
-    // Mes actual en UTC
-    const monthStart = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), 1));
-    const nextMonth = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth() + 1, 1));
-
-    const appointmentsToday = await Cita.countDocuments({ fecha: { $gte: today, $lt: tomorrow } });
-    const appointmentsWeek = await Cita.countDocuments({ fecha: { $gte: weekStart, $lt: weekEnd } });
-    const monthlyAppointments = await Cita.countDocuments({ fecha: { $gte: monthStart, $lt: nextMonth } });
+    const appointmentsToday = await Cita.countDocuments({ fecha: { $gte: startOfDayUTC, $lte: endOfDayUTC } });
+    const appointmentsWeek = await Cita.countDocuments({ fecha: { $gte: startOfWeekUTC, $lte: endOfWeekUTC } });
+    const monthlyAppointments = await Cita.countDocuments({ fecha: { $gte: startOfMonthUTC, $lte: endOfMonthUTC } });
 
     // Tratamientos completados este mes
     const Tratamiento = require('../../models/Tratamiento');
-    const completedTreatments = await Tratamiento.countDocuments({ estado: 'completado', fechaFin: { $gte: monthStart, $lt: nextMonth } });
+    const completedTreatments = await Tratamiento.countDocuments({ estado: 'completado', fechaFin: { $gte: startOfMonthUTC, $lte: endOfMonthUTC } });
 
     // Pagos pendientes y facturación (simulado)
     const pendingPayments = 0; // Simulación
