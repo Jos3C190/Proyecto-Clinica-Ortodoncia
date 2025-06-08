@@ -5,7 +5,7 @@ const itemSchema = new Schema({
     descripcion: { type: String, required: true },
     cantidad: { type: Number, required: true },
     precioUnitario: { type: Number, required: true },
-    total: { type: Number, required: true }
+    total: { type: Number }
 }, { _id: false });
 
 const pagoSchema = new Schema({
@@ -13,9 +13,9 @@ const pagoSchema = new Schema({
     paciente: { type: Schema.Types.ObjectId, ref: 'Paciente', required: true },
     tratamiento: { type: Schema.Types.ObjectId, ref: 'Tratamiento', required: true },
     items: [itemSchema],
-    subtotal: { type: Number, required: true },
-    impuestos: { type: Number, required: true },
-    total: { type: Number, required: true },
+    subtotal: { type: Number },
+    impuestos: { type: Number },
+    total: { type: Number },
     metodoPago: { type: String, required: true },
     estado: { type: String, enum: ['pendiente', 'pagado', 'cancelado'], default: 'pendiente' },
     fechaEmision: { type: Date, default: Date.now },
