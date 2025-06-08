@@ -4,6 +4,7 @@ const Tratamiento = require('../models/Tratamiento');
 
 exports.getAllPagos = async (req, res) => {
     try {
+        console.log('Iniciando getAllPagos');
         const { page = 1, limit = 10, estado, paciente } = req.query;
         let query = {};
 
@@ -20,10 +21,14 @@ exports.getAllPagos = async (req, res) => {
             populate: [{ path: 'paciente', select: 'nombre apellido correo telefono direccion' }, { path: 'tratamiento', select: 'descripcion tipo costo' }],
             sort: { fechaEmision: -1 }
         };
+        console.log('Query:', query);
+        console.log('Options:', options);
 
         const pagos = await Pago.paginate(query, options);
+        console.log('Pagos obtenidos:', pagos);
         res.status(200).json(pagos);
     } catch (error) {
+        console.error('Error en getAllPagos:', error);
         res.status(500).json({ message: error.message });
     }
 };
