@@ -7,6 +7,7 @@ const odontologoRoutes = require('./routes/odontologoRoutes');
 const citaRoutes = require('./routes/citaRoutes');
 const expedienteRoutes = require('./routes/expedienteRoutes');
 const tratamientoRoutes = require('./routes/tratamientoRoutes');
+const pagoRoutes = require('./routes/pagoRoutes');
 const errorHandler = require('./middleware/errorHandler');
 const dashboardRoutes = require('./routes/dashboardRoutes');
 
@@ -24,6 +25,7 @@ app.use('/odontologos', odontologoRoutes);
 app.use('/api/citas', citaRoutes);
 app.use('/api/expedientes', expedienteRoutes);
 app.use('/api/tratamientos', tratamientoRoutes);
+app.use('/api/pagos', pagoRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 
 // Middleware de manejo de errores
