@@ -1,6 +1,7 @@
 const Paciente = require('../../models/Paciente');
 const Cita = require('../../models/Cita');
 const Activity = require('../../models/Activity');
+const Pago = require('../../models/Pago');
 const moment = require('moment-timezone');
 // Si en el futuro hay modelo de pagos/facturación, se importará aquí
 
@@ -101,10 +102,19 @@ exports.getStats = async (req, res) => {
     const Tratamiento = require('../../models/Tratamiento');
     const completedTreatments = await Tratamiento.countDocuments({ estado: 'completado', fechaFin: { $gte: startOfMonthUTC, $lt: startOfNextMonthUTC } });
 
-    // Pagos pendientes y facturación (simulado)
-    const pendingPayments = 0; // Simulación
-    const totalRevenue = 0; // Simulación
-    const revenueThisMonth = 0; // Simulación
+    // Pagos pendientes y facturación
+    const pendingPaymentsCount = await Pago.countDocuments({ estado: 'pendiente' });
+    const totalRevenue = await Pago.aggregate([
+      { $match: { estado: 'pagado' } },
+      { $group: { _id: null, total: { $sum: '$total' } } }
+    ]);
+    const totalRevenueValue = totalRevenue.length > 0 ? totalRevenue[0].total : 0;
+
+    const monthlyRevenue = await Pago.aggregate([
+      { $match: { estado: 'pagado', fechaPago: { $gte: startOfMonthUTC, $lt: startOfNextMonthUTC } } },
+      { $group: { _id: null, total: { $sum: '$total' } } }
+    ]);
+    const monthlyRevenueValue = monthlyRevenue.length > 0 ? monthlyRevenue[0].total : 0;
 
     res.json({
       totalPatients,
@@ -112,9 +122,9 @@ exports.getStats = async (req, res) => {
       appointmentsWeek,
       monthlyAppointments,
       completedTreatments,
-      pendingPayments,
-      totalRevenue,
-      revenueThisMonth
+      pendingPayments: pendingPaymentsCount,
+      totalRevenue: totalRevenueValue,
+      revenueThisMonth: monthlyRevenueValue
     });
   } catch (error) {
     res.status(500).json({ message: 'Error al obtener estadísticas', error });
