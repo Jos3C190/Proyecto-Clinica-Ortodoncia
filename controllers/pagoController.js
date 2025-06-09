@@ -45,14 +45,17 @@ exports.createPago = async (req, res) => {
     } = req.body;
 
     try {
-        // Verificar que paciente y tratamiento existan
+        // Verificar que paciente exista
         const existingPaciente = await Paciente.findById(paciente);
         if (!existingPaciente) {
             return res.status(404).json({ message: 'Paciente no encontrado.' });
         }
-        const existingTratamiento = await Tratamiento.findById(tratamiento);
-        if (!existingTratamiento) {
-            return res.status(404).json({ message: 'Tratamiento no encontrado.' });
+        // La validación de tratamiento ahora es opcional
+        if (tratamiento) {
+            const existingTratamiento = await Tratamiento.findById(tratamiento);
+            if (!existingTratamiento) {
+                return res.status(404).json({ message: 'Tratamiento no encontrado.' });
+            }
         }
 
         const newPago = new Pago({

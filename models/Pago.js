@@ -12,7 +12,7 @@ const pagoSchema = new Schema({
     numeroFactura: { type: String, unique: true },
     transaccionId: { type: String, unique: true },
     paciente: { type: Schema.Types.ObjectId, ref: 'Paciente', required: true },
-    tratamiento: { type: Schema.Types.ObjectId, ref: 'Tratamiento', required: true },
+    tratamiento: { type: Schema.Types.ObjectId, ref: 'Tratamiento' },
     items: [itemSchema],
     subtotal: { type: Number },
     impuestos: { type: Number },
