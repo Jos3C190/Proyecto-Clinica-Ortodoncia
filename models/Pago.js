@@ -10,6 +10,7 @@ const itemSchema = new Schema({
 
 const pagoSchema = new Schema({
     numeroFactura: { type: String, unique: true },
+    transaccionId: { type: String, unique: true },
     paciente: { type: Schema.Types.ObjectId, ref: 'Paciente', required: true },
     tratamiento: { type: Schema.Types.ObjectId, ref: 'Tratamiento', required: true },
     items: [itemSchema],
@@ -38,6 +39,10 @@ pagoSchema.pre('save', async function(next) {
         }
         const year = new Date().getFullYear();
         this.numeroFactura = `FAC-${year}-${String(nextNumber).padStart(3, '0')}`;
+
+        // Generar transaccionId solo si es un nuevo documento
+        this.transaccionId = `TRX-${Date.now()}-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
+        console.log('TransaccionId generada:', this.transaccionId);
     }
     
     // Calcular subtotal, impuestos y total antes de guardar

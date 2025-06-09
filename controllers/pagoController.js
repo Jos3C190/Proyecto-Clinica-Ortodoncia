@@ -65,9 +65,12 @@ exports.createPago = async (req, res) => {
             notas
         });
 
+        console.log('Intentando guardar nuevo pago...', newPago);
         const savedPago = await newPago.save();
+        console.log('Pago guardado exitosamente:', savedPago);
         res.status(201).json(savedPago);
     } catch (error) {
+        console.error('Error en createPago:', error);
         res.status(400).json({ message: error.message });
     }
 };
