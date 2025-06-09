@@ -5,6 +5,7 @@ const verifyToken = require('../middleware/auth')();
 
 router.get('/', verifyToken, pagoController.getAllPagos);
 router.post('/', verifyToken, pagoController.createPago);
+router.get('/:id', verifyToken, pagoController.getByIdPago);
 router.put('/:id', verifyToken, pagoController.updatePago);
 router.delete('/:id', verifyToken, pagoController.deletePago);
 router.get('/stats', verifyToken, pagoController.getPagosStats);

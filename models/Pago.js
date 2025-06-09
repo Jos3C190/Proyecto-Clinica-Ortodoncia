@@ -26,8 +26,10 @@ const pagoSchema = new Schema({
 });
 
 pagoSchema.pre('save', async function(next) {
+    console.log('Pre-save hook ejecutado.');
     if (this.isNew) {
         // Generar numeroFactura solo si es un nuevo documento
+        console.log('Es un nuevo documento. Generando numeroFactura...');
         const lastPago = await this.constructor.findOne({}, {}, { sort: { 'createdAt' : -1 } });
         let nextNumber = 1;
         if (lastPago && lastPago.numeroFactura) {
@@ -39,9 +41,12 @@ pagoSchema.pre('save', async function(next) {
     }
     
     // Calcular subtotal, impuestos y total antes de guardar
+    console.log('Calculando subtotal, impuestos y total...');
+    console.log('Items actuales:', this.items);
     this.subtotal = this.items.reduce((acc, item) => acc + (item.cantidad * item.precioUnitario), 0);
     this.impuestos = this.subtotal * 0.13; // Suponiendo un 13% de impuestos
     this.total = this.subtotal + this.impuestos;
+    console.log('Nuevos valores - Subtotal:', this.subtotal, 'Impuestos:', this.impuestos, 'Total:', this.total);
     next();
 });
 

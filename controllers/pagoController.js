@@ -75,11 +75,21 @@ exports.createPago = async (req, res) => {
 exports.updatePago = async (req, res) => {
     try {
         const { id } = req.params;
-        const updatedPago = await Pago.findByIdAndUpdate(id, req.body, { new: true, runValidators: true });
+        let pago = await Pago.findById(id);
 
-        if (!updatedPago) {
+        if (!pago) {
             return res.status(404).json({ message: 'Pago no encontrado.' });
         }
+
+        // Actualizar solo los campos que se envían en el req.body
+        for (let key in req.body) {
+            if (req.body.hasOwnProperty(key)) {
+                pago[key] = req.body[key];
+            }
+        }
+        
+        // Los cálculos en pre('save') se ejecutarán al llamar a .save()
+        const updatedPago = await pago.save(); 
         res.status(200).json(updatedPago);
     } catch (error) {
         res.status(400).json({ message: error.message });
@@ -95,6 +105,22 @@ exports.deletePago = async (req, res) => {
             return res.status(404).json({ message: 'Pago no encontrado.' });
         }
         res.status(200).json({ message: 'Pago eliminado exitosamente.' });
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};
+
+exports.getByIdPago = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const pago = await Pago.findById(id)
+            .populate('paciente', 'nombre apellido correo telefono direccion')
+            .populate('tratamiento', 'descripcion tipo costo');
+
+        if (!pago) {
+            return res.status(404).json({ message: 'Pago no encontrado.' });
+        }
+        res.status(200).json(pago);
     } catch (error) {
         res.status(500).json({ message: error.message });
     }
