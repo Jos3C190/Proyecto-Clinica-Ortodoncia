@@ -131,6 +131,83 @@ exports.getStats = async (req, res) => {
   }
 };
 
+// GET /api/dashboard/revenue-chart
+exports.getRevenueChartData = async (req, res) => {
+  try {
+    const { year: queryYear } = req.query;
+    const currentYear = moment.tz('America/El_Salvador').year();
+    const targetYear = queryYear ? parseInt(queryYear, 10) : currentYear;
+
+    const tz = 'America/El_Salvador';
+    const monthsData = [];
+    const monthNames = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
+
+    for (let i = 0; i < 12; i++) {
+      const monthNumber = i + 1;
+      const startOfMonth = moment.tz(`${targetYear}-${monthNumber}-01`, 'YYYY-MM-DD', tz).startOf('month');
+      const endOfMonth = moment(startOfMonth).endOf('month');
+
+      const monthlyRevenue = await Pago.aggregate([
+        {
+          $match: {
+            estado: 'pagado',
+            fechaPago: { $gte: startOfMonth.toDate(), $lte: endOfMonth.toDate() }
+          }
+        },
+        { $group: { _id: null, total: { $sum: '$total' } } }
+      ]);
+
+      const monthAmount = monthlyRevenue.length > 0 ? monthlyRevenue[0].total : 0;
+      const weeksData = [];
+
+      // Calcular ingresos por semana dentro del mes
+      let currentWeekStart = moment(startOfMonth).startOf('week'); 
+      while (currentWeekStart.isBefore(endOfMonth) || currentWeekStart.isSame(endOfMonth, 'day')) {
+        const weekNumber = currentWeekStart.week() - moment(startOfMonth).startOf('month').week() + 1; 
+
+        const weekEnd = moment(currentWeekStart).endOf('week');
+        
+        // Ajustar el final de la semana para que no exceda el fin de mes
+        const actualWeekEnd = (weekEnd.isAfter(endOfMonth)) ? endOfMonth : weekEnd;
+
+        const weeklyRevenue = await Pago.aggregate([
+          {
+            $match: {
+              estado: 'pagado',
+              fechaPago: { $gte: currentWeekStart.toDate(), $lte: actualWeekEnd.toDate() }
+            }
+          },
+          { $group: { _id: null, total: { $sum: '$total' } } }
+        ]);
+
+        const weekAmount = weeklyRevenue.length > 0 ? weeklyRevenue[0].total : 0;
+        weeksData.push({ week: weekNumber, amount: parseFloat(weekAmount.toFixed(2)) });
+
+        currentWeekStart.add(1, 'week');
+      }
+
+      monthsData.push({
+        month: monthNumber,
+        monthName: monthNames[i],
+        amount: parseFloat(monthAmount.toFixed(2)),
+        weeks: weeksData
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      data: {
+        year: targetYear,
+        months: monthsData
+      }
+    });
+
+  } catch (error) {
+    console.error('Error al obtener datos del gráfico de ingresos:', error);
+    res.status(500).json({ success: false, message: 'Error al obtener datos del gráfico de ingresos', error: error.message });
+  }
+};
+
 // GET /api/dashboard/recent-appointments?limit=5
 exports.getRecentAppointments = async (req, res) => {
   try {
