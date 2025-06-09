@@ -27,6 +27,7 @@ const actualizarOdontologo = async (req, res) => {
         await odontologo.save();
         res.status(200).json(odontologo);
     } catch (error) {
+        console.error('Error en actualizarOdontologo (backend):', error);
         res.status(400).json({ error: error.message });
     }
 };
