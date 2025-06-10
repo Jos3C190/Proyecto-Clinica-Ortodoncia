@@ -208,6 +208,96 @@ exports.getRevenueChartData = async (req, res) => {
   }
 };
 
+// GET /api/dashboard/patient-growth
+exports.getPatientGrowthData = async (req, res) => {
+  try {
+    const { year: queryYear } = req.query;
+    const currentYear = moment.tz('America/El_Salvador').year();
+    const targetYear = queryYear ? parseInt(queryYear, 10) : currentYear;
+
+    const tz = 'America/El_Salvador';
+    const monthsData = [];
+    const monthNames = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
+
+    let overallTotalPatients = 0; // Para el total acumulado a lo largo del año
+    let totalNewPatientsYear = 0;
+    let totalGrowthPercentage = 0;
+    let growthMonthsCount = 0;
+    let bestMonth = { name: '', growthPercentage: -1 };
+    let worstMonth = { name: '', growthPercentage: Infinity };
+
+    for (let i = 0; i < 12; i++) {
+      const monthNumber = i + 1;
+      const startOfMonth = moment.tz(`${targetYear}-${monthNumber}-01`, 'YYYY-MM-DD', tz).startOf('month');
+      const endOfMonth = moment(startOfMonth).endOf('month');
+
+      const newPatientsThisMonth = await Paciente.countDocuments({
+        createdAt: { $gte: startOfMonth.toDate(), $lte: endOfMonth.toDate() }
+      });
+
+      totalNewPatientsYear += newPatientsThisMonth;
+      overallTotalPatients += newPatientsThisMonth; // Acumular total pacientes del año
+
+      const totalPatientsUpToMonth = await Paciente.countDocuments({
+        createdAt: { $lte: endOfMonth.toDate() }
+      });
+
+      // Pacientes antes del inicio de este mes para el porcentaje de crecimiento
+      const totalPatientsBeforeMonth = await Paciente.countDocuments({
+        createdAt: { $lt: startOfMonth.toDate() }
+      });
+
+      let growthPercentage = 0;
+      if (totalPatientsBeforeMonth > 0) {
+        growthPercentage = (newPatientsThisMonth / totalPatientsBeforeMonth) * 100;
+      }
+      
+      if (newPatientsThisMonth > 0) { // Solo consideramos meses con nuevos pacientes para el promedio de crecimiento
+        totalGrowthPercentage += growthPercentage;
+        growthMonthsCount++;
+      }
+
+      // Actualizar mejor y peor mes (basado en newPatients, o growthPercentage, según prefieras)
+      // Aquí lo hacemos basado en growthPercentage como en tu ejemplo
+      if (growthPercentage > bestMonth.growthPercentage) {
+        bestMonth = { name: monthNames[i], growthPercentage: growthPercentage };
+      }
+      if (newPatientsThisMonth > 0 && growthPercentage < worstMonth.growthPercentage) { // Solo si hubo crecimiento
+        worstMonth = { name: monthNames[i], growthPercentage: growthPercentage };
+      }
+
+      monthsData.push({
+        month: monthNames[i],
+        monthNumber: monthNumber,
+        newPatients: newPatientsThisMonth,
+        totalPatients: totalPatientsUpToMonth,
+        growthPercentage: parseFloat(growthPercentage.toFixed(2))
+      });
+    }
+
+    const averageGrowthPercentage = growthMonthsCount > 0 ? (totalGrowthPercentage / growthMonthsCount) : 0;
+
+    res.status(200).json({
+      success: true,
+      data: {
+        period: "year",
+        year: targetYear,
+        months: monthsData,
+        summary: {
+          totalNewPatients: totalNewPatientsYear,
+          averageGrowthPercentage: parseFloat(averageGrowthPercentage.toFixed(2)),
+          bestMonth: bestMonth.name,
+          worstMonth: worstMonth.name
+        }
+      }
+    });
+
+  } catch (error) {
+    console.error('Error al obtener datos de crecimiento de pacientes:', error);
+    res.status(500).json({ success: false, message: 'Error al obtener datos de crecimiento de pacientes', error: error.message });
+  }
+};
+
 // GET /api/dashboard/recent-appointments?limit=5
 exports.getRecentAppointments = async (req, res) => {
   try {

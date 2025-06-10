@@ -11,7 +11,7 @@ const pacienteSchema = new Schema({
     historia_clinica: { type: String }, // Opcional, no required
     password: { type: String, required: true }, // Campo para contraseña
     role: { type: String, default: 'paciente' } // Rol fijo como paciente
-});
+}, { timestamps: true });
 
 // Hashear contraseña antes de guardar
 pacienteSchema.pre('save', async function (next) {
