@@ -3,6 +3,7 @@ const Cita = require('../../models/Cita');
 const Activity = require('../../models/Activity');
 const Pago = require('../../models/Pago');
 const moment = require('moment-timezone');
+const Tratamiento = require('../../models/Tratamiento');
 // Si en el futuro hay modelo de pagos/facturación, se importará aquí
 
 // GET /api/dashboard/stats
@@ -99,7 +100,6 @@ exports.getStats = async (req, res) => {
     const monthlyAppointments = citasMes.length > 0 ? citasMes[0].total : 0;
 
     // Tratamientos completados este mes
-    const Tratamiento = require('../../models/Tratamiento');
     const completedTreatments = await Tratamiento.countDocuments({ estado: 'completado', fechaFin: { $gte: startOfMonthUTC, $lt: startOfNextMonthUTC } });
 
     // Pagos pendientes y facturación
@@ -295,6 +295,118 @@ exports.getPatientGrowthData = async (req, res) => {
   } catch (error) {
     console.error('Error al obtener datos de crecimiento de pacientes:', error);
     res.status(500).json({ success: false, message: 'Error al obtener datos de crecimiento de pacientes', error: error.message });
+  }
+};
+
+// GET /api/dashboard/treatment-distribution
+exports.getTreatmentDistributionData = async (req, res) => {
+  try {
+    const { year: queryYear } = req.query;
+    const currentYear = moment.tz('America/El_Salvador').year();
+    const targetYear = queryYear ? parseInt(queryYear, 10) : currentYear;
+
+    const tz = 'America/El_Salvador';
+    const startOfYear = moment.tz(`${targetYear}-01-01`, 'YYYY-MM-DD', tz).startOf('year');
+    const endOfYear = moment(startOfYear).endOf('year');
+
+    // Obtener todos los tratamientos creados o iniciados en el año objetivo
+    const treatmentsAggregation = await Tratamiento.aggregate([
+      {
+        $match: {
+          // Filtrar tratamientos por fecha de inicio o creación dentro del año objetivo
+          fechaInicio: { $gte: startOfYear.toDate(), $lte: endOfYear.toDate() }
+        }
+      },
+      {
+        $lookup: {
+          from: 'pagos', // Colección de pagos
+          localField: '_id', // Campo del Tratamiento
+          foreignField: 'tratamiento', // Campo en el Pago que referencia al Tratamiento
+          as: 'relatedPayments'
+        }
+      },
+      {
+        $addFields: {
+          // Calcular el ingreso total de pagos completados para este tratamiento
+          paidRevenue: {
+            $sum: {
+              $map: {
+                input: {
+                  $filter: {
+                    input: '$relatedPayments',
+                    as: 'payment',
+                    cond: { $eq: ['$$payment.estado', 'pagado'] }
+                  }
+                },
+                as: 'paidPayment',
+                in: '$$paidPayment.total'
+              }
+            }
+          }
+        }
+      },
+      {
+        $group: {
+          _id: '$tipo', // Agrupar por tipo de tratamiento
+          count: { $sum: 1 }, // Contar tratamientos de este tipo
+          revenue: { $sum: '$paidRevenue' }, // Sumar el ingreso de los pagos completados para este tipo de tratamiento
+          totalTreatmentCostForType: { $sum: '$costo' } // Sumar el costo original de los tratamientos de este tipo
+        }
+      },
+      {
+        $project: {
+          _id: 0,
+          type: '$_id',
+          count: 1,
+          revenue: { $round: ['$revenue', 2] },
+          averageCost: { $cond: [{ $gt: ['$count', 0] }, { $round: [{ $divide: ['$totalTreatmentCostForType', '$count'] }, 2] }, 0] }
+        }
+      }
+    ]);
+
+    const totalTreatments = treatmentsAggregation.reduce((acc, curr) => acc + curr.count, 0);
+    const totalRevenue = treatmentsAggregation.reduce((acc, curr) => acc + curr.revenue, 0);
+
+    let mostPopular = { type: '', count: -1 };
+    let mostProfitable = { type: '', revenue: -1 };
+
+    const treatmentsData = treatmentsAggregation.map(t => {
+      const percentage = totalTreatments > 0 ? (t.count / totalTreatments) * 100 : 0;
+
+      if (t.count > mostPopular.count) {
+        mostPopular = { type: t.type, count: t.count };
+      }
+      if (t.revenue > mostProfitable.revenue) {
+        mostProfitable = { type: t.type, revenue: t.revenue };
+      }
+
+      return {
+        type: t.type,
+        count: t.count,
+        percentage: parseFloat(percentage.toFixed(2)),
+        revenue: t.revenue,
+        averageCost: t.averageCost
+      };
+    });
+
+    res.status(200).json({
+      success: true,
+      data: {
+        period: "year",
+        year: targetYear,
+        treatments: treatmentsData,
+        summary: {
+          totalTreatments: totalTreatments,
+          totalRevenue: parseFloat(totalRevenue.toFixed(2)),
+          mostPopular: mostPopular.type,
+          mostProfitable: mostProfitable.type
+        }
+      }
+    });
+
+  } catch (error) {
+    console.error('Error al obtener datos de distribución de tratamientos:', error);
+    res.status(500).json({ success: false, message: 'Error al obtener datos de distribución de tratamientos', error: error.message });
   }
 };
 

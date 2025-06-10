@@ -8,5 +8,6 @@ router.get('/recent-appointments', auth(['admin', 'odontologo']), dashboardContr
 router.get('/activity', auth(['admin', 'odontologo']), dashboardController.getRecentActivity);
 router.get('/revenue-chart', auth(['admin', 'odontologo']), dashboardController.getRevenueChartData);
 router.get('/patient-growth', auth(['admin', 'odontologo']), dashboardController.getPatientGrowthData);
+router.get('/treatment-distribution', auth(['admin', 'odontologo']), dashboardController.getTreatmentDistributionData);
 
 module.exports = router; 
