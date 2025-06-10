@@ -519,6 +519,141 @@ exports.getAppointmentStatusData = async (req, res) => {
   }
 };
 
+// GET /api/dashboard/monthly-comparison
+exports.getMonthlyComparisonData = async (req, res) => {
+  try {
+    const tz = 'America/El_Salvador';
+    const today = moment.tz(tz);
+
+    const currentMonthStart = moment(today).startOf('month');
+    const currentMonthEnd = moment(today).endOf('month');
+
+    const prevMonthStart = moment(today).subtract(1, 'month').startOf('month');
+    const prevMonthEnd = moment(today).subtract(1, 'month').endOf('month');
+
+    const getMetricsForPeriod = async (start, end) => {
+
+      // 1. Pacientes Nuevos
+      const newPatients = await Paciente.countDocuments({
+        createdAt: { $gte: start.toDate(), $lte: end.toDate() }
+      });
+
+      // 2. Citas Completadas
+      const completedAppointmentsAggregation = await Cita.aggregate([
+        {
+          $match: {
+            fecha: { $gte: start.toDate(), $lte: end.toDate() },
+            estado: 'completada',
+            $or: [
+              { pacienteId: { $ne: null } },
+              { pacienteTemporalId: { $ne: null } }
+            ]
+          }
+        },
+        {
+          $lookup: {
+            from: 'pacientes',
+            localField: 'pacienteId',
+            foreignField: '_id',
+            as: 'pacienteInfo'
+          }
+        },
+        {
+          $lookup: {
+            from: 'pacientetemporals',
+            localField: 'pacienteTemporalId',
+            foreignField: '_id',
+            as: 'pacienteTemporalInfo'
+          }
+        },
+        {
+          $match: {
+            $or: [
+              { 'pacienteInfo': { $ne: [] } },
+              { 'pacienteTemporalInfo': { $ne: [] } }
+            ]
+          }
+        },
+        { $count: 'total' }
+      ]);
+      const completedAppointments = completedAppointmentsAggregation.length > 0 ? completedAppointmentsAggregation[0].total : 0;
+
+      // 3. Ingresos (Pagos Completados)
+      const revenueAggregation = await Pago.aggregate([
+        {
+          $match: {
+            estado: 'pagado',
+            fechaPago: { $gte: start.toDate(), $lte: end.toDate() }
+          }
+        },
+        { $group: { _id: null, total: { $sum: '$total' } } }
+      ]);
+      const revenue = revenueAggregation.length > 0 ? parseFloat(revenueAggregation[0].total.toFixed(2)) : 0;
+
+      // 4. Tratamientos Iniciados
+      const treatmentsStarted = await Tratamiento.countDocuments({
+        fechaInicio: { $gte: start.toDate(), $lte: end.toDate() }
+      });
+
+      return {
+        newPatients,
+        completedAppointments,
+        revenue,
+        treatmentsStarted
+      };
+    };
+
+    const currentPeriodMetrics = await getMetricsForPeriod(currentMonthStart, currentMonthEnd);
+    const comparisonPeriodMetrics = await getMetricsForPeriod(prevMonthStart, prevMonthEnd);
+
+    const calculateChanges = (current, comparison) => {
+      const absolute = current - comparison;
+      let percentage = 0;
+      if (comparison !== 0) {
+        percentage = (absolute / comparison) * 100;
+      } else if (current > 0) {
+        percentage = 100; // Si el anterior era 0 y el actual es > 0, es 100% de crecimiento
+      }
+
+      let trend = "no_change";
+      if (absolute > 0) trend = "up";
+      else if (absolute < 0) trend = "down";
+
+      return {
+        absolute: parseFloat(absolute.toFixed(2)),
+        percentage: parseFloat(percentage.toFixed(2)),
+        trend
+      };
+    };
+
+    res.status(200).json({
+      success: true,
+      data: {
+        currentPeriod: {
+          month: currentMonthStart.format('YYYY-MM'),
+          label: currentMonthStart.format('MMMM YYYY'),
+          metrics: currentPeriodMetrics
+        },
+        comparisonPeriod: {
+          month: prevMonthStart.format('YYYY-MM'),
+          label: prevMonthStart.format('MMMM YYYY'),
+          metrics: comparisonPeriodMetrics
+        },
+        changes: {
+          newPatients: calculateChanges(currentPeriodMetrics.newPatients, comparisonPeriodMetrics.newPatients),
+          completedAppointments: calculateChanges(currentPeriodMetrics.completedAppointments, comparisonPeriodMetrics.completedAppointments),
+          revenue: calculateChanges(currentPeriodMetrics.revenue, comparisonPeriodMetrics.revenue),
+          treatmentsStarted: calculateChanges(currentPeriodMetrics.treatmentsStarted, comparisonPeriodMetrics.treatmentsStarted)
+        }
+      }
+    });
+
+  } catch (error) {
+    console.error('Error al obtener datos de comparación mensual:', error);
+    res.status(500).json({ success: false, message: 'Error al obtener datos de comparación mensual', error: error.message });
+  }
+};
+
 // GET /api/dashboard/recent-appointments?limit=5
 exports.getRecentAppointments = async (req, res) => {
   try {
