@@ -1,13 +1,13 @@
 const express = require('express');
 const router = express.Router();
 const pagoController = require('../controllers/pagoController');
-const verifyToken = require('../middleware/auth')();
+const auth = require('../middleware/auth');
 
-router.get('/', verifyToken, pagoController.getAllPagos);
-router.post('/', verifyToken, pagoController.createPago);
-router.get('/:id', verifyToken, pagoController.getByIdPago);
-router.put('/:id', verifyToken, pagoController.updatePago);
-router.delete('/:id', verifyToken, pagoController.deletePago);
-router.get('/stats', verifyToken, pagoController.getPagosStats);
+router.get('/', auth(['admin', 'odontologo']), pagoController.getAllPagos);
+router.post('/', auth(['admin', 'odontologo']), pagoController.createPago);
+router.get('/:id', auth(['admin', 'odontologo']), pagoController.getByIdPago);
+router.put('/:id', auth(['admin', 'odontologo']), pagoController.updatePago);
+router.delete('/:id', auth(['admin']), pagoController.deletePago);
+router.get('/stats', auth(['admin', 'odontologo']), pagoController.getPagosStats);
 
 module.exports = router; 
