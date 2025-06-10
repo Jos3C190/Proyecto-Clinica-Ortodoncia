@@ -410,6 +410,115 @@ exports.getTreatmentDistributionData = async (req, res) => {
   }
 };
 
+// GET /api/dashboard/appointment-status
+exports.getAppointmentStatusData = async (req, res) => {
+  try {
+    const { year: queryYear, month: queryMonth } = req.query;
+    const tz = 'America/El_Salvador';
+    const today = moment.tz(tz);
+
+    const targetYear = queryYear ? parseInt(queryYear, 10) : today.year();
+    const targetMonth = queryMonth ? parseInt(queryMonth, 10) : (today.month() + 1);
+
+    let startDate, endDate, periodLabel;
+
+    if (queryMonth) {
+      // Datos para un mes específico
+      startDate = moment.tz(`${targetYear}-${targetMonth}-01`, 'YYYY-MM-DD', tz).startOf('month');
+      endDate = moment(startDate).endOf('month');
+      periodLabel = "month";
+    } else {
+      // Por defecto, datos para todo el año
+      startDate = moment.tz(`${targetYear}-01-01`, 'YYYY-MM-DD', tz).startOf('year');
+      endDate = moment(startDate).endOf('year');
+      periodLabel = "year";
+    }
+
+    const statusAggregation = await Cita.aggregate([
+      {
+        $match: {
+          fecha: { $gte: startDate.toDate(), $lte: endDate.toDate() }
+        }
+      },
+      {
+        $lookup: {
+          from: 'pacientes',
+          localField: 'pacienteId',
+          foreignField: '_id',
+          as: 'pacienteInfo'
+        }
+      },
+      {
+        $lookup: {
+          from: 'pacientetemporals', // Asegúrate de que este es el nombre correcto de tu colección para PacienteTemporal
+          localField: 'pacienteTemporalId',
+          foreignField: '_id',
+          as: 'pacienteTemporalInfo'
+        }
+      },
+      {
+        $match: {
+          $or: [
+            { 'pacienteInfo': { $ne: [] } }, // El paciente principal existe
+            { 'pacienteTemporalInfo': { $ne: [] } } // El paciente temporal existe
+          ]
+        }
+      },
+      {
+        $group: {
+          _id: '$estado',
+          count: { $sum: 1 }
+        }
+      },
+      {
+        $project: {
+          _id: 0,
+          status: '$_id',
+          count: 1
+        }
+      }
+    ]);
+
+    const totalAppointments = statusAggregation.reduce((acc, curr) => acc + curr.count, 0);
+    const statusDistribution = statusAggregation.map(item => {
+      const percentage = totalAppointments > 0 ? (item.count / totalAppointments) * 100 : 0;
+      let label = item.status;
+      switch (item.status) {
+        case 'completada': label = 'Completadas'; break;
+        case 'pendiente': label = 'Pendientes'; break;
+        case 'cancelada': label = 'Canceladas'; break;
+        default: label = item.status; break;
+      }
+      return { ...item, percentage: parseFloat(percentage.toFixed(2)), label };
+    });
+
+    const completedCount = statusDistribution.find(s => s.status === 'completada')?.count || 0;
+    const cancelledCount = statusDistribution.find(s => s.status === 'cancelada')?.count || 0;
+
+    const completionRate = totalAppointments > 0 ? (completedCount / totalAppointments) * 100 : 0;
+    const cancellationRate = totalAppointments > 0 ? (cancelledCount / totalAppointments) * 100 : 0;
+
+    res.status(200).json({
+      success: true,
+      data: {
+        period: periodLabel,
+        year: targetYear,
+        month: queryMonth ? targetMonth : undefined, // Incluir el mes solo si se consultó por mes
+        statusDistribution: statusDistribution,
+        summary: {
+          totalAppointments: totalAppointments,
+          completionRate: parseFloat(completionRate.toFixed(2)),
+          cancellationRate: parseFloat(cancellationRate.toFixed(2))
+        }
+      }
+    });
+
+  } catch (error) {
+    console.error('Error al obtener datos de estado de citas:', error);
+    res.status(500).json({ success: false, message: 'Error al obtener datos de estado de citas', error: error.message });
+  }
+};
+
 // GET /api/dashboard/recent-appointments?limit=5
 exports.getRecentAppointments = async (req, res) => {
   try {
