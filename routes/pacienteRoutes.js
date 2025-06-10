@@ -9,6 +9,7 @@ const obtenerPaciente = require('../controllers/pacienteController/obtenerPacien
 const actualizarPaciente = require('../controllers/pacienteController/actualizarPaciente');
 const eliminarPaciente = require('../controllers/pacienteController/eliminarPaciente');
 const obtenerMisPagos = require('../controllers/pacienteController/obtenerMisPagos'); // Nuevo controlador
+const marcarPagoComoPagado = require('../controllers/pacienteController/marcarPagoComoPagado'); // Nuevo controlador
 
 // Validaciones
 const validacionesPaciente = [
@@ -34,5 +35,9 @@ router.get('/:id', auth(['paciente', 'odontologo', 'admin']), param('id').isMong
 router.put('/:id', auth(['odontologo', 'admin']), validacionesPaciente, param('id').isMongoId(), actualizarPaciente); // Odontólogos y admins actualizan
 router.delete('/:id', auth(['admin']), param('id').isMongoId(), eliminarPaciente); // Solo admin elimina
 router.get('/pagos/mis-pagos', auth(['paciente']), obtenerMisPagos); // Pacientes ven sus propios pagos
+router.post('/pagos/:id/marcar-pagado', auth(['paciente']), [
+    param('id').isMongoId().withMessage('ID de pago inválido'),
+    body('metodoPago').isIn(['tarjeta', 'transferencia', 'efectivo']).withMessage('Método de pago inválido')
+], marcarPagoComoPagado); // Pacientes marcan sus pagos como pagados
 
 module.exports = router;
